@@ -19,7 +19,8 @@ package org.apache.trevni;
 
 import java.io.IOException;
 
-/** An wrapper of {@link Input} for using user-defined buffer size */
+/** An wrapper of {@link Input} for using user-defined buffer size.
+ * This wrapper probably will not be able to help*/
 public class BufferedInput implements Input {
 
   private Input internalInput;
