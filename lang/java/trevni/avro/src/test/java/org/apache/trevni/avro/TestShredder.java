@@ -38,6 +38,8 @@ public class TestShredder {
   @Test public void testPrimitives() throws Exception {
     check(Schema.create(Schema.Type.NULL),
           new ColumnMetaData("null", ValueType.NULL));
+    check(Schema.create(Schema.Type.BOOLEAN),
+          new ColumnMetaData("boolean", ValueType.BOOLEAN));
 
     check(Schema.create(Schema.Type.INT),
           new ColumnMetaData("int", ValueType.INT));
@@ -86,6 +88,19 @@ public class TestShredder {
           new ColumnMetaData("y", ValueType.STRING));
   }
 
+  @Test public void testNamedRecord() throws Exception {
+	    String s = 
+	      "{\"type\":\"record\",\"name\":\"S\",\"fields\":["
+	      +"{\"name\":\"R1\",\"type\":"+SIMPLE_RECORD+"},"
+	      +"{\"name\":\"R2\",\"type\":\"R\"}"
+	      +"]}";
+	    check(Schema.parse(s),
+	          new ColumnMetaData("R1#x", ValueType.INT),
+	          new ColumnMetaData("R1#y", ValueType.STRING),
+	          new ColumnMetaData("R2#x", ValueType.INT),
+	          new ColumnMetaData("R2#y", ValueType.STRING));
+	  }
+  
   @Test public void testSimpleArray() throws Exception {
     String s = "{\"type\":\"array\",\"items\":\"long\"}";
     check(Schema.parse(s),

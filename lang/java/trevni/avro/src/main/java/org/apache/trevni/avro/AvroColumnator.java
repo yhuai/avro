@@ -97,6 +97,7 @@ class AvroColumnator {
     default:
       throw new TrevniRuntimeException("Unknown schema: "+s);
     }
+    seen.remove(s);
   }
 
   private String p(String parent, Schema child, String sep) {
@@ -136,7 +137,7 @@ class AvroColumnator {
 
   static boolean isSimple(Schema s) {
     switch (s.getType()) {
-    case NULL:
+    case NULL: case BOOLEAN:
     case INT: case LONG:
     case FLOAT: case DOUBLE: 
     case BYTES: case STRING: 
@@ -150,6 +151,7 @@ class AvroColumnator {
   private ValueType simpleValueType(Schema s) {
     switch (s.getType()) {
     case NULL:   return ValueType.NULL;
+    case BOOLEAN:return ValueType.BOOLEAN;
     case INT:    return ValueType.INT;
     case LONG:   return ValueType.LONG;
     case FLOAT:  return ValueType.FLOAT;

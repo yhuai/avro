@@ -15,20 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.trevni;
 
-/** The datatypes that may be stored in a column. */
-public enum ValueType {
-  NULL, BOOLEAN, INT, LONG, FIXED32, FIXED64, FLOAT, DOUBLE, STRING, BYTES;
-  private String name;
-  private ValueType() { this.name = this.name().toLowerCase(); }
+package org.apache.avro.mapred;
 
-  /** Return the name of this type. */
-  public String getName() { return name; }
+import static org.junit.Assert.*;
 
-  /** Return a type given its name. */
-  public static ValueType forName(String name) {
-    return valueOf(name.toUpperCase());
+import org.junit.Test;
+
+public class TestAvroWrapper {
+  @Test
+  public void testToString() {
+    String datum = "my string";
+    AvroWrapper<CharSequence> wrapper = new AvroWrapper<CharSequence>(datum);
+    assertEquals(datum, wrapper.toString());
   }
- 
 }

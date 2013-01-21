@@ -33,6 +33,8 @@ class InputBuffer {
   private int pos;                                // position within buffer
   private int limit;                              // end of valid buffer data
 
+  private int bitCount;                           // position in booleans
+
   public InputBuffer(Input in) throws IOException { this(in, 0); }
 
   public InputBuffer(Input in, long position) throws IOException {
@@ -44,6 +46,7 @@ class InputBuffer {
       this.buf = ((InputBytes)in).getBuffer();
       this.limit = (int)in.length();
       this.offset = limit;
+      this.pos = (int)position;
     } else {                                      // create new buffer
       this.buf = new byte[8192];                  // big enough for primitives
     }
@@ -67,6 +70,8 @@ class InputBuffer {
     switch (type) {
     case NULL:
       return (T)null;
+    case BOOLEAN:
+      return (T)Boolean.valueOf(readBoolean());
     case INT:
       return (T)Integer.valueOf(readInt());
     case LONG:
@@ -92,6 +97,8 @@ class InputBuffer {
     switch (type) {
     case NULL:
                     break;
+    case BOOLEAN:
+      readBoolean(); break;
     case INT:
       readInt();    break;
     case LONG:
@@ -108,6 +115,22 @@ class InputBuffer {
     default:
       throw new TrevniRuntimeException("Unknown value type: "+type);
     }
+  }
+
+  public boolean readBoolean() throws IOException {
+    if (bitCount == 0)
+      read();
+    int bits = buf[pos-1] & 0xff;
+    int bit = (bits >> bitCount) & 1;
+    bitCount++;
+    if (bitCount == 8)
+      bitCount = 0;
+    return bit == 0 ? false : true;
+  }
+
+  public int readLength() throws IOException {
+    bitCount = 0;
+    return readInt();
   }
 
   public int readInt() throws IOException {
