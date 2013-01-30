@@ -100,6 +100,48 @@ public class ColumnValues<T extends Comparable>
       throw new IOException("Checksums mismatch.");
     values = new InputBuffer(new InputBytes(data));
   }
+  
+  private void startBlockWithPrefetch(int block, int numOfPrefetched) throws IOException {
+    if (block + numOfPrefetched > column.blockCount() - 1) {
+      // check if we will reach the end of the column and do not enough blocks to prefetch
+      numOfPrefetched = column.blockCount() - 1 - block;
+    }
+    int blocksFetched = numOfPrefetched + 1;
+    this.block = block + numOfPrefetched; // set this.block to the last fetched block
+    this.row = column.firstRows[block];   // set this.row to the first row of the first 
+                                          // fetched block
+
+    int[] starts = new int[blocksFetched];  // the start position of each block in raw
+    int[] ends = new int[blocksFetched];    // the end position of each block in raw
+                                            // (the start position of checksum)
+    int[] lengths = new int[blocksFetched]; // the length of data of each block
+    starts[0] = 0;
+    lengths[0] = column.blocks[block].compressedSize;
+    ends[0] = lengths[0];
+    for (int i=1; i<blocksFetched; i++) {
+      starts[i] = ends[i-1] + checksum.size();
+      lengths[i] = column.blocks[block+i].compressedSize;
+      ends[i] = starts[i] + lengths[i];
+    }
+    int rawSize = ends[blocksFetched-1]+checksum.size();
+    byte[] raw = new byte[rawSize];
+
+    in.seek(column.blockStarts[block]);
+    in.readFully(raw);
+    
+    ByteBuffer data = ByteBuffer.allocate(rawSize-checksum.size()*blocksFetched);
+    // check checksum and copy data to the buffer
+    for (int i=0; i<blocksFetched; i++) {
+      ByteBuffer blockData = codec.decompress(ByteBuffer.wrap(raw, starts[i], lengths[i]));
+      if (!checksum.compute(blockData).equals
+          (ByteBuffer.wrap(raw, ends[i], checksum.size()))) {
+        throw new IOException("Checksums mismatch.");
+      } else {
+        data.put(blockData);
+      }
+    }
+    values = new InputBuffer(new InputBytes(data));
+  }
 
   @Override public Iterator iterator() { return this; }
 
@@ -119,13 +161,26 @@ public class ColumnValues<T extends Comparable>
     }
   }
 
-  /** Expert: Must be called before any calls to {@link #nextLength()} or
-   * {@link #nextValue()}. */
+  /** Expert: Either {@link #startRowWithPrefetch()} or this one must be called before
+   * any calls to {@link #nextLength()} or {@link #nextValue()}. */
   public void startRow() throws IOException {
     if (row >= column.lastRow(block)) {
       if (block >= column.blockCount())
         throw new TrevniRuntimeException("Read past end of column.");
       startBlock(block+1);
+    }
+    row++;
+  }
+  
+  /** Expert: Either {@link #startRow()} or this one must be called before
+   * any calls to {@link #nextLength()} or {@link #nextValue()}. 
+   * When a new block needs to be started, it will try to prefetch
+   * numOfPrefetched blocks after the specified block.*/
+  public void startRowWithPrefetch(int numOfPrefetched) throws IOException {
+    if (row >= column.lastRow(block)) {
+      if (block >= column.blockCount())
+        throw new TrevniRuntimeException("Read past end of column.");
+      startBlockWithPrefetch(block+1, numOfPrefetched);
     }
     row++;
   }
