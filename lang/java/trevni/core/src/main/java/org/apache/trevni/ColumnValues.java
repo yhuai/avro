@@ -17,6 +17,7 @@
  */
 package org.apache.trevni;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
@@ -128,8 +129,10 @@ public class ColumnValues<T extends Comparable>
 
     in.seek(column.blockStarts[block]);
     in.readFully(raw);
-    
-    ByteBuffer data = ByteBuffer.allocate(rawSize-checksum.size()*blocksFetched);
+
+    // set the suggestedLength to rawSize-checksum.size()*blocksFetched
+    ByteArrayOutputStream data = 
+        new ByteArrayOutputStream(rawSize-checksum.size()*blocksFetched);
     // check checksum and copy data to the buffer
     for (int i=0; i<blocksFetched; i++) {
       ByteBuffer blockData = codec.decompress(ByteBuffer.wrap(raw, starts[i], lengths[i]));
@@ -137,10 +140,11 @@ public class ColumnValues<T extends Comparable>
           (ByteBuffer.wrap(raw, ends[i], checksum.size()))) {
         throw new IOException("Checksums mismatch.");
       } else {
-        data.put(blockData);
+        data.write(blockData.array());
       }
     }
-    values = new InputBuffer(new InputBytes(data));
+    data.close();
+    values = new InputBuffer(new InputBytes(ByteBuffer.wrap(data.toByteArray())));
   }
 
   @Override public Iterator iterator() { return this; }

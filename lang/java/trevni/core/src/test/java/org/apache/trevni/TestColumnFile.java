@@ -39,6 +39,7 @@ public class TestColumnFile {
 
   private static final File FILE = new File("target", "test.trv");
   private static final int COUNT = 1024*64;
+  private static final int NUM_OF_PREFECHED_BLOCKS = 2;
 
   private String codec;
   private String checksum;
@@ -110,6 +111,31 @@ public class TestColumnFile {
     Assert.assertEquals(COUNT, count);
   }
 
+  @Test public void testIntsWithPrefetchedRead() throws Exception {
+    FILE.delete();
+
+    ColumnFileWriter out =
+      new ColumnFileWriter(createFileMeta(),
+                           new ColumnMetaData("test", ValueType.INT));
+    Random random = TestUtil.createRandom();
+    for (int i = 0; i < COUNT; i++)
+      out.writeRow(TestUtil.randomLength(random));
+    out.writeTo(FILE);
+
+    random = TestUtil.createRandom();
+    ColumnFileReader in = new ColumnFileReader(FILE);
+    Assert.assertEquals(COUNT, in.getRowCount());
+    Assert.assertEquals(1, in.getColumnCount());
+    ColumnValues<Integer> i = in.getValues("test");
+    int count = 0;
+    while (i.hasNext()) {
+      i.startRowWithPrefetch(NUM_OF_PREFECHED_BLOCKS);
+      Assert.assertEquals(TestUtil.randomLength(random), (int)i.nextValue());
+      count++;
+    }
+    Assert.assertEquals(COUNT, count);
+  }
+  
   @Test public void testLongs() throws Exception {
     FILE.delete();
 
@@ -129,6 +155,31 @@ public class TestColumnFile {
     int count = 0;
     while (i.hasNext()) {
       Assert.assertEquals(random.nextLong(), (long)i.next());
+      count++;
+    }
+    Assert.assertEquals(COUNT, count);
+  }
+
+  @Test public void testLongsWithPrefetchedRead() throws Exception {
+    FILE.delete();
+
+    ColumnFileWriter out =
+      new ColumnFileWriter(createFileMeta(),
+                           new ColumnMetaData("test", ValueType.LONG));
+    Random random = TestUtil.createRandom();
+    for (int i = 0; i < COUNT; i++)
+      out.writeRow(random.nextLong());
+    out.writeTo(FILE);
+
+    random = TestUtil.createRandom();
+    ColumnFileReader in = new ColumnFileReader(FILE);
+    Assert.assertEquals(COUNT, in.getRowCount());
+    Assert.assertEquals(1, in.getColumnCount());
+    ColumnValues<Long> i = in.getValues("test");
+    int count = 0;
+    while (i.hasNext()) {
+      i.startRowWithPrefetch(NUM_OF_PREFECHED_BLOCKS);
+      Assert.assertEquals(random.nextLong(), (long)i.nextValue());
       count++;
     }
     Assert.assertEquals(COUNT, count);
@@ -158,6 +209,31 @@ public class TestColumnFile {
     Assert.assertEquals(COUNT, count);
   }
 
+  @Test public void testStringsWithPrefetchedRead() throws Exception {
+    FILE.delete();
+
+    ColumnFileWriter out =
+      new ColumnFileWriter(createFileMeta(),
+                           new ColumnMetaData("test", ValueType.STRING));
+    Random random = TestUtil.createRandom();
+    for (int i = 0; i < COUNT; i++)
+      out.writeRow(TestUtil.randomString(random));
+    out.writeTo(FILE);
+
+    random = TestUtil.createRandom();
+    ColumnFileReader in = new ColumnFileReader(FILE);
+    Assert.assertEquals(COUNT, in.getRowCount());
+    Assert.assertEquals(1, in.getColumnCount());
+    ColumnValues<String> i = in.getValues("test");
+    int count = 0;
+    while (i.hasNext()) {
+      i.startRowWithPrefetch(NUM_OF_PREFECHED_BLOCKS);
+      Assert.assertEquals(TestUtil.randomString(random), i.nextValue());
+      count++;
+    }
+    Assert.assertEquals(COUNT, count);
+  }
+
   @Test public void testTwoColumn() throws Exception {
     FILE.delete();
     ColumnFileWriter out =
@@ -179,6 +255,34 @@ public class TestColumnFile {
     while (i.hasNext() && j.hasNext()) {
       Assert.assertEquals(random.nextInt(), i.next());
       Assert.assertEquals(TestUtil.randomString(random), j.next());
+      count++;
+    }
+    Assert.assertEquals(COUNT, count);
+  }
+
+  @Test public void testTwoColumnWithPrefetchedRead() throws Exception {
+    FILE.delete();
+    ColumnFileWriter out =
+      new ColumnFileWriter(createFileMeta(),
+                           new ColumnMetaData("a", ValueType.FIXED32),
+                           new ColumnMetaData("b", ValueType.STRING));
+    Random random = TestUtil.createRandom();
+    for (int i = 0; i < COUNT; i++)
+      out.writeRow(random.nextInt(), TestUtil.randomString(random));
+    out.writeTo(FILE);
+
+    random = TestUtil.createRandom();
+    ColumnFileReader in = new ColumnFileReader(FILE);
+    Assert.assertEquals(COUNT, in.getRowCount());
+    Assert.assertEquals(2, in.getColumnCount());
+    ColumnValues<String> i = in.getValues("a");
+    ColumnValues<String> j = in.getValues("b");
+    int count = 0;
+    while (i.hasNext() && j.hasNext()) {
+      i.startRowWithPrefetch(NUM_OF_PREFECHED_BLOCKS);
+      j.startRowWithPrefetch(NUM_OF_PREFECHED_BLOCKS);
+      Assert.assertEquals(random.nextInt(), i.nextValue());
+      Assert.assertEquals(TestUtil.randomString(random), j.nextValue());
       count++;
     }
     Assert.assertEquals(COUNT, count);
