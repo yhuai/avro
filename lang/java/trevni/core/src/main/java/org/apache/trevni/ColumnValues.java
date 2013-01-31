@@ -17,7 +17,6 @@
  */
 package org.apache.trevni;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
