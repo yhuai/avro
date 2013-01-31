@@ -130,21 +130,37 @@ public class ColumnValues<T extends Comparable>
     in.seek(column.blockStarts[block]);
     in.readFully(raw);
 
-    // set the suggestedLength to rawSize-checksum.size()*blocksFetched
-    ByteArrayOutputStream data = 
-        new ByteArrayOutputStream(rawSize-checksum.size()*blocksFetched);
-    // check checksum and copy data to the buffer
-    for (int i=0; i<blocksFetched; i++) {
-      ByteBuffer blockData = codec.decompress(ByteBuffer.wrap(raw, starts[i], lengths[i]));
-      if (!checksum.compute(blockData).equals
-          (ByteBuffer.wrap(raw, ends[i], checksum.size()))) {
-        throw new IOException("Checksums mismatch.");
-      } else {
-        data.write(blockData.array());
+    if (codec instanceof NullCodec) {
+      ByteBuffer data = ByteBuffer.allocate(rawSize-checksum.size()*blocksFetched);
+      // check checksum and copy data to the buffer
+      for (int i=0; i<blocksFetched; i++) {
+        ByteBuffer blockData = codec.decompress(ByteBuffer.wrap(raw, starts[i], lengths[i]));
+        if (!checksum.compute(blockData).equals
+            (ByteBuffer.wrap(raw, ends[i], checksum.size()))) {
+          throw new IOException("Checksums mismatch.");
+        } else {
+          data.put(blockData);
+        }
       }
+      data.flip();
+      values = new InputBuffer(new InputBytes(data));
+    } else {
+      // set the suggestedLength to rawSize-checksum.size()*blocksFetched
+      ByteArrayOutputStream data = 
+          new ByteArrayOutputStream(rawSize-checksum.size()*blocksFetched);
+      // check checksum and copy data to the buffer
+      for (int i=0; i<blocksFetched; i++) {
+        ByteBuffer blockData = codec.decompress(ByteBuffer.wrap(raw, starts[i], lengths[i]));
+        if (!checksum.compute(blockData).equals
+            (ByteBuffer.wrap(raw, ends[i], checksum.size()))) {
+          throw new IOException("Checksums mismatch.");
+        } else {
+          data.write(blockData.array());
+        }
+      }
+      data.close();
+      values = new InputBuffer(new InputBytes(ByteBuffer.wrap(data.toByteArray())));
     }
-    data.close();
-    values = new InputBuffer(new InputBytes(ByteBuffer.wrap(data.toByteArray())));
   }
 
   @Override public Iterator iterator() { return this; }
