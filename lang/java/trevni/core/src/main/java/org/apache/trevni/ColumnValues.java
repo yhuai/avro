@@ -130,37 +130,24 @@ public class ColumnValues<T extends Comparable>
     in.seek(column.blockStarts[block]);
     in.readFully(raw);
 
-    if (codec instanceof NullCodec) {
-      ByteBuffer data = ByteBuffer.allocate(rawSize-checksum.size()*blocksFetched);
-      // check checksum and copy data to the buffer
-      for (int i=0; i<blocksFetched; i++) {
-        ByteBuffer blockData = codec.decompress(ByteBuffer.wrap(raw, starts[i], lengths[i]));
-        if (!checksum.compute(blockData).equals
-            (ByteBuffer.wrap(raw, ends[i], checksum.size()))) {
-          throw new IOException("Checksums mismatch.");
-        } else {
-          data.put(blockData);
-        }
+    int size = 0;
+    ByteBuffer[] blocks = new ByteBuffer[blocksFetched];
+    // check checksum and copy data to the buffer
+    for (int i=0; i<blocksFetched; i++) {
+      blocks[i] = codec.decompress(ByteBuffer.wrap(raw, starts[i], lengths[i]));
+      if (!checksum.compute(blocks[i]).equals
+          (ByteBuffer.wrap(raw, ends[i], checksum.size()))) {
+        throw new IOException("Checksums mismatch.");
+      } else {
+        size += blocks[i].remaining();
       }
-      data.flip();
-      values = new InputBuffer(new InputBytes(data));
-    } else {
-      // set the suggestedLength to rawSize-checksum.size()*blocksFetched
-      ByteArrayOutputStream data = 
-          new ByteArrayOutputStream(rawSize-checksum.size()*blocksFetched);
-      // check checksum and copy data to the buffer
-      for (int i=0; i<blocksFetched; i++) {
-        ByteBuffer blockData = codec.decompress(ByteBuffer.wrap(raw, starts[i], lengths[i]));
-        if (!checksum.compute(blockData).equals
-            (ByteBuffer.wrap(raw, ends[i], checksum.size()))) {
-          throw new IOException("Checksums mismatch.");
-        } else {
-          data.write(blockData.array());
-        }
-      }
-      data.close();
-      values = new InputBuffer(new InputBytes(ByteBuffer.wrap(data.toByteArray())));
     }
+    ByteBuffer data = ByteBuffer.allocate(size);
+    for (int i=0; i<blocksFetched; i++) {
+      data.put(blocks[i]);
+    }
+    data.flip();
+    values = new InputBuffer(new InputBytes(data));
   }
 
   @Override public Iterator iterator() { return this; }
