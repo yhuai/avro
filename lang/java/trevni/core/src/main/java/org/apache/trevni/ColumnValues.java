@@ -186,6 +186,9 @@ public class ColumnValues<T extends Comparable>
     if (row >= column.lastRow(block)) {
       if (block >= column.blockCount())
         throw new TrevniRuntimeException("Read past end of column.");
+      if (numOfPrefetched < 0)
+        throw new TrevniRuntimeException("The number of prefetched blocks should " +
+        		"be equal or greater than 0");
       startBlockWithPrefetch(block+1, numOfPrefetched);
     }
     row++;
